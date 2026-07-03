@@ -10,9 +10,13 @@ import { LoadingScreen } from "../components/LoadingScreen";
 import { ErrorState } from "../components/ErrorState";
 import { EmptyState } from "../components/EmptyState";
 import { OnboardingChecklist } from "../components/OnboardingChecklist";
+import { DashboardGreeting } from "../components/DashboardGreeting";
+import { useAuthSession } from "../lib/auth";
+import { getDisplayName } from "../lib/user";
 
 export default function Dashboard() {
   const { data, isLoading, isError, error, refetch } = useFinanceSnapshot();
+  const { session } = useAuthSession();
   if (isLoading) return <LoadingScreen />;
   if (isError || !data) return <ErrorState message={error?.message} onRetry={() => refetch()} />;
 
@@ -32,6 +36,7 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard-grid">
+      <DashboardGreeting name={getDisplayName(session)} data={data} />
       <OnboardingChecklist data={data} />
       <div className="kpi-grid">
         <KpiCard label="Net worth" value={currency(netWorth(data.accounts, data.cards, data.investments))} detail="Assets minus card liabilities" icon={Wallet} tone="green" />

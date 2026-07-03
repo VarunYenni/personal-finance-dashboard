@@ -157,6 +157,40 @@ export interface CreateCardPaymentInput {
   date: string;
 }
 
+export interface UpdateTransactionInput extends CreateTransactionInput {
+  id: string;
+}
+
+export interface UpdateAccountInput {
+  id: string;
+  name: string;
+  institution: string;
+  currentBalance: number;
+  status: Account["status"];
+  notes?: string;
+}
+
+export interface UpdateCreditCardInput {
+  id: string;
+  accountId: string;
+  name: string;
+  institution: string;
+  creditLimit: number;
+  outstandingAmount: number;
+  statementDate: number;
+  dueDate: string;
+  annualFee: number;
+  rewardRate: number;
+}
+
+export interface UpsertInvestmentInput {
+  id?: string;
+  name: string;
+  type: Investment["type"];
+  investmentAmount: number;
+  currentValue: number;
+}
+
 const defaultCategories = demoData.categories.map((category) => ({
   name: category.name,
   type: category.type,
@@ -306,6 +340,42 @@ async function seedDefaultCategories(userId: string) {
   if (insertError) throw insertError;
 }
 
+async function getAccount(id: string) {
+  if (!supabase) throw new Error("Sign in is not available in this preview.");
+  const { data, error } = await supabase.from("accounts").select("id, type, current_balance").eq("id", id).single();
+  if (error) throw error;
+  return data;
+}
+
+async function adjustAccountBalance(id: string, delta: number) {
+  if (!supabase) throw new Error("Sign in is not available in this preview.");
+  const account = await getAccount(id);
+  const { error } = await supabase
+    .from("accounts")
+    .update({ current_balance: toNumber(account.current_balance) + delta, updated_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) throw error;
+}
+
+async function adjustCardOutstanding(id: string, delta: number) {
+  if (!supabase) throw new Error("Sign in is not available in this preview.");
+  const { data, error } = await supabase.from("cards").select("outstanding_amount").eq("id", id).single();
+  if (error) throw error;
+  const { error: updateError } = await supabase
+    .from("cards")
+    .update({ outstanding_amount: Math.max(0, toNumber(data.outstanding_amount) + delta) })
+    .eq("id", id);
+  if (updateError) throw updateError;
+}
+
+async function applyTransactionEffects(row: { account_id: string; card_id?: string | null; kind: TransactionKind; amount: string | number }, direction: 1 | -1) {
+  const amount = toNumber(row.amount);
+  const accountDelta = row.kind === "income" ? amount : row.kind === "card_payment" ? -amount : -amount;
+  await adjustAccountBalance(row.account_id, accountDelta * direction);
+  if (row.card_id && row.kind === "expense") await adjustCardOutstanding(row.card_id, amount * direction);
+  if (row.card_id && row.kind === "card_payment") await adjustCardOutstanding(row.card_id, -amount * direction);
+}
+
 export function useFinanceSnapshot() {
   return useQuery({
     queryKey: ["finance-snapshot"],
@@ -427,6 +497,63 @@ export function useCreateTransaction() {
   });
 }
 
+export function useUpdateTransaction() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: UpdateTransactionInput) => {
+      if (!isSupabaseConfigured || !supabase) return;
+      const userId = await requireUserId();
+      const { data: oldRow, error: oldError } = await supabase
+        .from("transactions")
+        .select("id, account_id, card_id, kind, amount")
+        .eq("id", input.id)
+        .single();
+      if (oldError) throw oldError;
+
+      await applyTransactionEffects(oldRow, -1);
+
+      const account = await getAccount(input.accountId);
+      const accountType = account.type as Account["type"];
+      if (accountType === "credit_card" && input.kind !== "expense") {
+        throw new Error("Credit cards can only be used for expenses.");
+      }
+      const cardQuery = accountType === "credit_card"
+        ? await supabase.from("cards").select("id").eq("account_id", input.accountId).maybeSingle()
+        : { data: null, error: null };
+      if (cardQuery.error) throw cardQuery.error;
+
+      const { data: merchantRow, error: merchantError } = await supabase
+        .from("merchants")
+        .upsert({ user_id: userId, name: input.merchant }, { onConflict: "user_id,name" })
+        .select("id")
+        .single();
+      if (merchantError) throw merchantError;
+
+      const nextRow = {
+        account_id: input.accountId,
+        category_id: input.categoryId,
+        merchant_id: merchantRow.id,
+        card_id: cardQuery.data?.id ?? null,
+        date: input.date,
+        merchant: input.merchant,
+        description: input.description ?? input.merchant,
+        amount: input.amount,
+        kind: input.kind,
+        payment_method: accountType === "credit_card" ? "credit_card" : "bank_transfer",
+        updated_at: new Date().toISOString()
+      };
+
+      const { error } = await supabase.from("transactions").update(nextRow).eq("id", input.id);
+      if (error) throw error;
+      await applyTransactionEffects({ account_id: nextRow.account_id, card_id: nextRow.card_id, kind: nextRow.kind, amount: nextRow.amount }, 1);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["finance-snapshot"] });
+    }
+  });
+}
+
 export function useCreateAccount() {
   const queryClient = useQueryClient();
 
@@ -449,6 +576,28 @@ export function useCreateAccount() {
         status: "active"
       });
 
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["finance-snapshot"] });
+    }
+  });
+}
+
+export function useUpdateAccount() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: UpdateAccountInput) => {
+      if (!isSupabaseConfigured || !supabase) return;
+      const { error } = await supabase.from("accounts").update({
+        name: input.name,
+        institution: input.institution,
+        current_balance: input.currentBalance,
+        status: input.status,
+        notes: input.notes ?? null,
+        updated_at: new Date().toISOString()
+      }).eq("id", input.id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -500,6 +649,62 @@ export function useCreateCreditCard() {
       });
 
       if (cardError) throw cardError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["finance-snapshot"] });
+    }
+  });
+}
+
+export function useUpdateCreditCard() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: UpdateCreditCardInput) => {
+      if (!isSupabaseConfigured || !supabase) return;
+      const { error: accountError } = await supabase.from("accounts").update({
+        name: input.name,
+        institution: input.institution,
+        current_balance: -input.outstandingAmount,
+        updated_at: new Date().toISOString()
+      }).eq("id", input.accountId);
+      if (accountError) throw accountError;
+
+      const { error } = await supabase.from("cards").update({
+        credit_limit: input.creditLimit,
+        outstanding_amount: input.outstandingAmount,
+        statement_date: input.statementDate,
+        due_date: input.dueDate,
+        annual_fee: input.annualFee,
+        reward_rate: input.rewardRate
+      }).eq("id", input.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["finance-snapshot"] });
+    }
+  });
+}
+
+export function useUpsertInvestment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: UpsertInvestmentInput) => {
+      if (!isSupabaseConfigured || !supabase) return;
+      const userId = await requireUserId();
+      const payload = {
+        user_id: userId,
+        name: input.name,
+        type: input.type,
+        investment_amount: input.investmentAmount,
+        current_value: input.currentValue
+      };
+      const query = input.id
+        ? supabase.from("investments").update(payload).eq("id", input.id)
+        : supabase.from("investments").insert(payload);
+      const { error } = await query;
+      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["finance-snapshot"] });

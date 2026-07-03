@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
-import { Copy, Download, Filter, Search, Trash2, Upload } from "lucide-react";
+import { Copy, Download, Edit3, Filter, Search, Trash2, Upload } from "lucide-react";
 import { useDeleteTransactions, useDuplicateTransaction, useFinanceSnapshot } from "../data/queries";
 import { dateLabel, currency } from "../lib/format";
 import { LoadingScreen } from "../components/LoadingScreen";
 import { Section } from "../components/Section";
 import { EmptyState } from "../components/EmptyState";
 import { ErrorState } from "../components/ErrorState";
+import { EditTransactionForm } from "../components/EditTransactionForm";
 
 export default function Transactions() {
   const { data, isLoading, isError, error, refetch } = useFinanceSnapshot();
@@ -14,6 +15,7 @@ export default function Transactions() {
   const [search, setSearch] = useState("");
   const [kind, setKind] = useState("all");
   const [selected, setSelected] = useState<string[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const rows = useMemo(() => {
     if (!data) return [];
@@ -90,7 +92,15 @@ export default function Transactions() {
               <span>{categoryById.get(transaction.categoryId) ?? transaction.kind.replace("_", " ")}</span>
               <span>{accountById.get(transaction.accountId) ?? transaction.paymentMethod.replace("_", " ")}</span>
               <strong className={transaction.kind === "income" ? "positive" : transaction.kind === "card_payment" ? "neutral" : "negative"}>{currency(transaction.amount)}</strong>
-              <button className="icon-button" aria-label="Duplicate transaction" type="button" disabled={duplicateTransaction.isPending} onClick={() => duplicateTransaction.mutate(transaction.id)}><Copy size={16} /></button>
+              <span className="row-actions">
+                <button className="icon-button" aria-label="Edit transaction" type="button" onClick={() => setEditingId(transaction.id)}><Edit3 size={16} /></button>
+                <button className="icon-button" aria-label="Duplicate transaction" type="button" disabled={duplicateTransaction.isPending} onClick={() => duplicateTransaction.mutate(transaction.id)}><Copy size={16} /></button>
+              </span>
+              {editingId === transaction.id && (
+                <div className="data-row-editor">
+                  <EditTransactionForm transaction={transaction} categories={data.categories} accounts={data.accounts} onDone={() => setEditingId(null)} />
+                </div>
+              )}
             </div>
           )) : <EmptyState title="No transactions found" message="Adjust filters or add a transaction from the dashboard." />}
           {deleteTransactions.isError && <p className="inline-error">{deleteTransactions.error.message}</p>}
