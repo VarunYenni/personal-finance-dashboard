@@ -14,6 +14,14 @@ export default function Transactions() {
   const duplicateTransaction = useDuplicateTransaction();
   const [search, setSearch] = useState("");
   const [kind, setKind] = useState("all");
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [categoryId, setCategoryId] = useState("all");
+  const [accountId, setAccountId] = useState("all");
+  const [paymentMethod, setPaymentMethod] = useState("all");
+  const [minAmount, setMinAmount] = useState("");
+  const [maxAmount, setMaxAmount] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -22,9 +30,16 @@ export default function Transactions() {
     return data.transactions.filter((transaction) => {
       const matchesSearch = `${transaction.merchant} ${transaction.description} ${transaction.tags.join(" ")}`.toLowerCase().includes(search.toLowerCase());
       const matchesKind = kind === "all" || transaction.kind === kind;
-      return matchesSearch && matchesKind;
+      const matchesDateFrom = !dateFrom || transaction.date >= dateFrom;
+      const matchesDateTo = !dateTo || transaction.date <= dateTo;
+      const matchesCategory = categoryId === "all" || transaction.categoryId === categoryId;
+      const matchesAccount = accountId === "all" || transaction.accountId === accountId;
+      const matchesPayment = paymentMethod === "all" || transaction.paymentMethod === paymentMethod;
+      const matchesMin = !minAmount || transaction.amount >= Number(minAmount);
+      const matchesMax = !maxAmount || transaction.amount <= Number(maxAmount);
+      return matchesSearch && matchesKind && matchesDateFrom && matchesDateTo && matchesCategory && matchesAccount && matchesPayment && matchesMin && matchesMax;
     });
-  }, [data, kind, search]);
+  }, [accountId, categoryId, data, dateFrom, dateTo, kind, maxAmount, minAmount, paymentMethod, search]);
 
   if (isLoading) return <LoadingScreen />;
   if (isError || !data) return <ErrorState message={error?.message} onRetry={() => refetch()} />;
@@ -64,6 +79,20 @@ export default function Transactions() {
     setSelected([]);
   }
 
+  function clearAdvancedFilters() {
+    setDateFrom("");
+    setDateTo("");
+    setCategoryId("all");
+    setAccountId("all");
+    setPaymentMethod("all");
+    setMinAmount("");
+    setMaxAmount("");
+    setSelected([]);
+  }
+
+  const activeAdvancedCount = [dateFrom, dateTo, minAmount, maxAmount].filter(Boolean).length
+    + [categoryId, accountId, paymentMethod].filter((value) => value !== "all").length;
+
   return (
     <div className="page-stack">
       <Section title="Transactions" action={<button className="primary-button" type="button" onClick={exportCsv}><Download size={16} /> Export CSV</button>}>
@@ -76,10 +105,39 @@ export default function Transactions() {
             <option value="investment">Investment</option>
             <option value="card_payment">Card payment</option>
           </select>
-          <button className="ghost-button"><Filter size={16} /> Advanced</button>
+          <button className={`ghost-button ${advancedOpen ? "active-filter" : ""}`} type="button" onClick={() => setAdvancedOpen((open) => !open)}>
+            <Filter size={16} /> Advanced{activeAdvancedCount ? ` (${activeAdvancedCount})` : ""}
+          </button>
           <button className="ghost-button"><Upload size={16} /> Receipt</button>
           <button className="danger-button" type="button" disabled={!selected.length || deleteTransactions.isPending} onClick={bulkDelete}><Trash2 size={16} /> {deleteTransactions.isPending ? "Deleting" : "Delete"}</button>
         </div>
+        {advancedOpen && (
+          <div className="advanced-filters" aria-label="Advanced transaction filters">
+            <label>From<input type="date" value={dateFrom} onChange={(event) => { setDateFrom(event.target.value); setSelected([]); }} /></label>
+            <label>To<input type="date" value={dateTo} onChange={(event) => { setDateTo(event.target.value); setSelected([]); }} /></label>
+            <label>Category<select value={categoryId} onChange={(event) => { setCategoryId(event.target.value); setSelected([]); }}>
+              <option value="all">All categories</option>
+              {data.categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+            </select></label>
+            <label>Source<select value={accountId} onChange={(event) => { setAccountId(event.target.value); setSelected([]); }}>
+              <option value="all">All sources</option>
+              {data.accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
+            </select></label>
+            <label>Payment<select value={paymentMethod} onChange={(event) => { setPaymentMethod(event.target.value); setSelected([]); }}>
+              <option value="all">All methods</option>
+              <option value="upi">UPI</option>
+              <option value="cash">Cash</option>
+              <option value="bank_transfer">Bank transfer</option>
+              <option value="debit_card">Debit card</option>
+              <option value="credit_card">Credit card</option>
+              <option value="cheque">Cheque</option>
+              <option value="wallet">Wallet</option>
+            </select></label>
+            <label>Min amount<input type="number" value={minAmount} onChange={(event) => { setMinAmount(event.target.value); setSelected([]); }} /></label>
+            <label>Max amount<input type="number" value={maxAmount} onChange={(event) => { setMaxAmount(event.target.value); setSelected([]); }} /></label>
+            <button className="ghost-button" type="button" onClick={clearAdvancedFilters}>Clear filters</button>
+          </div>
+        )}
         <div className="data-table" role="table" aria-label="Transactions">
           <div className="data-row head" role="row">
             <span></span><span>Date</span><span>Merchant</span><span>Category</span><span>Source</span><span>Amount</span><span></span>

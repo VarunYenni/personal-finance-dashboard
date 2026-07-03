@@ -158,6 +158,9 @@ progress::-webkit-progress-value { background: linear-gradient(90deg, #60a5fa, #
 .inline-edit-form label { display: grid; gap: 8px; color: var(--muted); font-size: 0.86rem; }
 .search-input { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg-2); padding: 0 10px; }
 .search-input input { border: 0; background: transparent; padding: 0; }
+.active-filter { border-color: var(--blue); color: var(--blue); }
+.advanced-filters { display: grid; grid-template-columns: repeat(4, minmax(150px, 1fr)); gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg-2); }
+.advanced-filters label { display: grid; gap: 8px; color: var(--muted); font-size: 0.86rem; }
 
 .card-grid { display: grid; grid-template-columns: repeat(3, minmax(210px, 1fr)); gap: 14px; }
 .account-card { min-height: 180px; border-radius: 8px; padding: 18px; display: grid; gap: 9px; align-content: start; }
@@ -216,7 +219,7 @@ progress::-webkit-progress-value { background: linear-gradient(90deg, #60a5fa, #
 @media (max-width: 1180px) {
   .kpi-grid { grid-template-columns: repeat(2, minmax(180px, 1fr)); }
   .card-grid, .summary-grid { grid-template-columns: repeat(2, minmax(180px, 1fr)); }
-  .quick-add, .filter-bar, .account-form, .onboarding-list, .inline-edit-form { grid-template-columns: repeat(2, minmax(140px, 1fr)); }
+  .quick-add, .filter-bar, .account-form, .onboarding-list, .inline-edit-form, .advanced-filters { grid-template-columns: repeat(2, minmax(140px, 1fr)); }
   .personal-hero { grid-template-columns: 1fr; }
 }
 
@@ -237,7 +240,7 @@ progress::-webkit-progress-value { background: linear-gradient(90deg, #60a5fa, #
 }
 
 @media (max-width: 560px) {
-  .kpi-grid, .card-grid, .summary-grid, .quick-add, .filter-bar, .account-form, .inline-edit-form { grid-template-columns: 1fr; }
+  .kpi-grid, .card-grid, .summary-grid, .quick-add, .filter-bar, .account-form, .inline-edit-form, .advanced-filters { grid-template-columns: 1fr; }
   .table-row { grid-template-columns: 1fr auto; }
   .table-row small { grid-column: 1 / -1; text-align: left; }
   .section { padding: 14px; }
