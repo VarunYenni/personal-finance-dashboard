@@ -1,0 +1,12 @@
+{
+  "name": "Ledgerly",
+  "short_name": "Ledgerly",
+  "description": "A premium personal finance dashboard.",
+  "start_url": "/app",
+  "display": "standalone",
+  "background_color": "#07080d",
+  "theme_color": "#07080d",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}
