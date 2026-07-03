@@ -1,10 +1,11 @@
 import { lazy, Suspense, useEffect } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
-import { supabase } from "./lib/supabase";
+import { isSupabaseConfigured } from "./lib/supabase";
 import { AppShell } from "./components/AppShell";
 import { LoadingScreen } from "./components/LoadingScreen";
 import { Seo } from "./components/Seo";
 import { useUiStore } from "./store/uiStore";
+import { useAuthSession } from "./lib/auth";
 
 const Marketing = lazy(() => import("./pages/Marketing"));
 const Auth = lazy(() => import("./pages/Auth"));
@@ -53,8 +54,10 @@ function App() {
 }
 
 function ProtectedApp() {
-  const hasConfiguredAuth = Boolean(supabase);
-  if (!hasConfiguredAuth) return <AppShell />;
+  const { session, isLoading } = useAuthSession();
+  if (!isSupabaseConfigured) return <AppShell />;
+  if (isLoading) return <LoadingScreen />;
+  if (!session) return <Navigate to="/auth" replace />;
   return <AppShell />;
 }
 

@@ -22,9 +22,6 @@ export default function Settings() {
           <button className="danger-button"><Trash2 size={16} /> Delete account</button>
         </div>
       </Section>
-      <Section title="Supabase">
-        <p className="muted-copy">Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to enable authentication, RLS-backed tables, realtime sync, and receipt storage.</p>
-      </Section>
     </div>
   );
 }

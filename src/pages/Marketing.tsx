@@ -42,7 +42,7 @@ export default function Marketing({ section }: MarketingProps) {
             { title: "True accounting", body: "Every transaction affects an account and category. Card payments reduce liability without double-counting expense.", Icon: CheckCircle2 },
             { title: "Cards and banks", body: "Track balances, utilization, due dates, statement cycles, rewards, and most-used cards.", Icon: WalletCards },
             { title: "Reports and budgets", body: "Monthly and yearly summaries, merchant analytics, savings rate, cash flow, and budget alerts.", Icon: PieChart },
-            { title: "Supabase secure", body: "Auth, RLS policies, storage-ready receipts, realtime-ready data, and no server to maintain.", Icon: Lock }
+            { title: "Secure by design", body: "Private accounts, protected financial records, receipt-ready storage, and a foundation built for reliable sync.", Icon: Lock }
           ].map(({ title, body, Icon }) => (
             <article className="feature-card" key={title}>
               <Icon size={22} />

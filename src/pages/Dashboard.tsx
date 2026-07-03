@@ -7,10 +7,14 @@ import { KpiCard } from "../components/KpiCard";
 import { QuickAddTransaction } from "../components/QuickAddTransaction";
 import { Section } from "../components/Section";
 import { LoadingScreen } from "../components/LoadingScreen";
+import { ErrorState } from "../components/ErrorState";
+import { EmptyState } from "../components/EmptyState";
+import { OnboardingChecklist } from "../components/OnboardingChecklist";
 
 export default function Dashboard() {
-  const { data, isLoading } = useFinanceSnapshot();
-  if (isLoading || !data) return <LoadingScreen />;
+  const { data, isLoading, isError, error, refetch } = useFinanceSnapshot();
+  if (isLoading) return <LoadingScreen />;
+  if (isError || !data) return <ErrorState message={error?.message} onRetry={() => refetch()} />;
 
   const currentMonth = monthTransactions(data.transactions, monthKey());
   const categorySpend = groupExpensesByCategory(currentMonth, data.categories);
@@ -28,6 +32,7 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard-grid">
+      <OnboardingChecklist data={data} />
       <div className="kpi-grid">
         <KpiCard label="Net worth" value={currency(netWorth(data.accounts, data.cards, data.investments))} detail="Assets minus card liabilities" icon={Wallet} tone="green" />
         <KpiCard label="Monthly income" value={currency(income(currentMonth))} detail="Salary and credits" icon={Banknote} tone="green" />
@@ -45,7 +50,7 @@ export default function Dashboard() {
       <section className="analytics-grid">
         <Section title="Monthly cash flow">
           <div className="chart-box">
-            <ResponsiveContainer width="100%" height={260}>
+            {cashFlow.length ? <ResponsiveContainer width="100%" height={260}>
               <AreaChart data={cashFlow}>
                 <defs>
                   <linearGradient id="income" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#4ade80" stopOpacity={0.45} /><stop offset="100%" stopColor="#4ade80" stopOpacity={0.03} /></linearGradient>
@@ -57,19 +62,19 @@ export default function Dashboard() {
                 <Area dataKey="income" stroke="#4ade80" fill="url(#income)" />
                 <Area dataKey="expenses" stroke="#fb7185" fill="#fb718522" />
               </AreaChart>
-            </ResponsiveContainer>
+            </ResponsiveContainer> : <EmptyState title="No cash flow yet" message="Add income and expenses to see monthly trends." />}
           </div>
         </Section>
         <Section title="Expense breakdown">
           <div className="chart-box">
-            <ResponsiveContainer width="100%" height={260}>
+            {categorySpend.length ? <ResponsiveContainer width="100%" height={260}>
               <RePieChart>
                 <Pie data={categorySpend} dataKey="value" nameKey="name" innerRadius={58} outerRadius={95} paddingAngle={4}>
                   {categorySpend.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
                 </Pie>
                 <Tooltip formatter={(value) => currency(Number(value))} contentStyle={{ background: "var(--panel)", border: "1px solid var(--line)" }} />
               </RePieChart>
-            </ResponsiveContainer>
+            </ResponsiveContainer> : <EmptyState title="No expenses yet" message="Expense categories appear after you add spending." />}
           </div>
         </Section>
       </section>
@@ -77,23 +82,23 @@ export default function Dashboard() {
       <section className="analytics-grid">
         <Section title="Top merchants">
           <div className="table-list">
-            {merchantSpend.map((merchant) => (
+            {merchantSpend.length ? merchantSpend.map((merchant) => (
               <div className="table-row" key={merchant.merchant}>
                 <span>{merchant.merchant}</span>
                 <strong>{currency(merchant.spend)}</strong>
                 <small>{merchant.count} txns</small>
               </div>
-            ))}
+            )) : <EmptyState title="No merchants yet" message="Your top merchants appear after expenses are recorded." />}
           </div>
         </Section>
         <Section title="Budget progress">
           <div className="budget-list">
-            {budgets.map((budget) => (
+            {budgets.length ? budgets.map((budget) => (
               <div className="budget-item" key={budget.id}>
                 <div><strong>{budget.category}</strong><span>{currency(budget.spent)} of {currency(budget.amount)}</span></div>
                 <progress value={budget.progress} max={100} />
               </div>
-            ))}
+            )) : <EmptyState title="No budgets yet" message="Category budgets will show here once configured." />}
           </div>
         </Section>
       </section>
@@ -101,31 +106,31 @@ export default function Dashboard() {
       <section className="analytics-grid">
         <Section title="Upcoming card dues">
           <div className="table-list">
-            {cardDue.map((card) => (
+            {cardDue.length ? cardDue.map((card) => (
               <div className="table-row" key={card.id}>
                 <span>{card.name}</span>
                 <strong>{currency(card.outstandingAmount)}</strong>
                 <small>{dateLabel(card.dueDate)} · {Math.max(card.days, 0)} days</small>
               </div>
-            ))}
+            )) : <EmptyState title="No cards yet" message="Add credit cards to track dues and utilization." />}
           </div>
         </Section>
         <Section title="Recent transactions">
           <div className="table-list">
-            {data.transactions.slice(0, 6).map((transaction) => (
+            {data.transactions.length ? data.transactions.slice(0, 6).map((transaction) => (
               <div className="table-row" key={transaction.id}>
                 <span>{transaction.merchant}</span>
                 <strong className={transaction.kind === "income" ? "positive" : transaction.kind === "card_payment" ? "neutral" : "negative"}>{currency(transaction.amount)}</strong>
                 <small>{transaction.kind.replace("_", " ")} · {dateLabel(transaction.date)}</small>
               </div>
-            ))}
+            )) : <EmptyState title="No transactions yet" message="Use Quick Add to start tracking money movement." />}
           </div>
         </Section>
       </section>
 
       <Section title="Payment method mix">
         <div className="chart-box">
-          <ResponsiveContainer width="100%" height={240}>
+          {paymentMethodMix.length ? <ResponsiveContainer width="100%" height={240}>
             <BarChart data={paymentMethodMix}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" />
               <XAxis dataKey="method" stroke="var(--muted)" />
@@ -133,7 +138,7 @@ export default function Dashboard() {
               <Tooltip contentStyle={{ background: "var(--panel)", border: "1px solid var(--line)" }} />
               <Bar dataKey="value" fill="#60a5fa" radius={[6, 6, 0, 0]} />
             </BarChart>
-          </ResponsiveContainer>
+          </ResponsiveContainer> : <EmptyState title="No payment mix yet" message="Payment method usage appears after transactions are added." />}
         </div>
       </Section>
     </div>

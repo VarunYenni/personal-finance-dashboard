@@ -1,7 +1,9 @@
-import { NavLink, Outlet } from "react-router-dom";
-import { BarChart3, CreditCard, Landmark, LayoutDashboard, Menu, Moon, PieChart, ReceiptText, Settings, Sun } from "lucide-react";
+import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
+import { BarChart3, CreditCard, Landmark, LayoutDashboard, LogOut, Menu, Moon, PieChart, ReceiptText, Settings, Sun, UserCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { useUiStore } from "../store/uiStore";
+import { useAuthSession } from "../lib/auth";
+import { isSupabaseConfigured, supabase } from "../lib/supabase";
 
 const navigation = [
   { to: "/app", label: "Dashboard", icon: LayoutDashboard, end: true },
@@ -13,7 +15,14 @@ const navigation = [
 ];
 
 export function AppShell() {
+  const navigate = useNavigate();
   const { theme, setTheme, sidebarOpen, toggleSidebar } = useUiStore();
+  const { session } = useAuthSession();
+
+  async function signOut() {
+    if (supabase) await supabase.auth.signOut();
+    navigate("/auth");
+  }
 
   return (
     <div className="app-frame">
@@ -40,9 +49,17 @@ export function AppShell() {
             <p className="eyebrow">Personal finance command center</p>
             <h1>Money, cards, budgets, and investments</h1>
           </div>
-          <button className="icon-button" type="button" aria-label="Toggle theme" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
-            {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
+          <div className="topbar-actions">
+            {!isSupabaseConfigured && <Link className="auth-status demo" to="/auth"><UserCircle size={16} /> Preview mode</Link>}
+            {isSupabaseConfigured && session && (
+              <button className="auth-status" type="button" onClick={signOut}>
+                <LogOut size={16} /> Sign out
+              </button>
+            )}
+            <button className="icon-button" type="button" aria-label="Toggle theme" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
+              {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
+          </div>
         </header>
         <motion.main className="content" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
           <Outlet />
