@@ -77,7 +77,7 @@ export default function Dashboard() {
                 <Pie data={categorySpend} dataKey="value" nameKey="name" innerRadius={58} outerRadius={95} paddingAngle={4}>
                   {categorySpend.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
                 </Pie>
-                <Tooltip formatter={(value) => currency(Number(value))} contentStyle={{ background: "var(--panel)", border: "1px solid var(--line)" }} />
+                <Tooltip formatter={(value) => currency(Number(value))} contentStyle={{ background: "var(--panel)", border: "1px solid var(--line)" }} itemStyle={{ color: "var(--text)"}} />
               </RePieChart>
             </ResponsiveContainer> : <EmptyState title="No expenses yet" message="Expense categories appear after you add spending." />}
           </div>
@@ -140,7 +140,7 @@ export default function Dashboard() {
               <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" />
               <XAxis dataKey="method" stroke="var(--muted)" />
               <YAxis allowDecimals={false} stroke="var(--muted)" />
-              <Tooltip contentStyle={{ background: "var(--panel)", border: "1px solid var(--line)" }} />
+              <Tooltip contentStyle={{ background: "var(--panel)", border: "1px solid var(--line)" }} cursor={{ fill: "rgba(96, 165, 250, 0.08)" }} />
               <Bar dataKey="value" fill="#60a5fa" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer> : <EmptyState title="No payment mix yet" message="Payment method usage appears after transactions are added." />}
